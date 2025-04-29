@@ -3,6 +3,9 @@
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { analyzeMedia, MediaAnalysis } from '../services/mediaAnalysis';
+import { generateFileHash } from '../services/hashService';
+import { createDID, DIDDocument } from '../services/didService';
+import { createResource, DIDResource, ResourceMetadata } from '../services/resourceService';
 import AnalysisResult from '../components/AnalysisResult';
 import Image from 'next/image';
 
@@ -11,6 +14,9 @@ export default function MediaUpload() {
   const [preview, setPreview] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<MediaAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [hash, setHash] = useState<string>('');
+  const [did, setDid] = useState<DIDDocument | null>(null);
+  const [resource, setResource] = useState<DIDResource | null>(null);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -27,8 +33,42 @@ export default function MediaUpload() {
       try {
         const result = await analyzeMedia(file);
         setAnalysis(result);
+
+        // Generate file hash
+        const fileHash = await generateFileHash(file);
+        setHash(fileHash);
+
+        // Create DID
+        const didDocument = await createDID();
+        setDid(didDocument);
+
+        // Create resource with hash
+        const resourceContent = JSON.stringify({
+          name: file.name,
+          version: '1.0',
+          hash: fileHash,
+          type: file.type,
+          size: file.size
+        });
+
+        const metadata: ResourceMetadata = {
+          name: 'media-verification',
+          type: 'MediaVerification',
+          version: '1.0',
+          alsoKnownAs: [{
+            id: `media-${fileHash.substring(0, 8)}`,
+            type: 'MediaVerification'
+          }]
+        };
+
+        const didResource = await createResource(
+          didDocument.id,
+          resourceContent,
+          metadata
+        );
+        setResource(didResource);
       } catch (error) {
-        console.error('Error analyzing media:', error);
+        console.error('Error processing file:', error);
         setAnalysis({
           isAuthentic: false,
           confidence: 0,
@@ -36,7 +76,7 @@ export default function MediaUpload() {
             fileSize: file.size,
             fileType: file.type,
           },
-          warnings: ['Failed to analyze media file'],
+          warnings: ['Failed to process media file'],
         });
       } finally {
         setIsAnalyzing(false);
@@ -107,6 +147,44 @@ export default function MediaUpload() {
       )}
 
       {analysis && <AnalysisResult analysis={analysis} />}
+
+      {hash && (
+        <div className="mt-6">
+          <h4 className="font-poppins text-lg font-semibold mb-2">File Hash</h4>
+          <div className="bg-gray-100 p-4 rounded-lg">
+            <p className="font-mono text-sm break-all">{hash}</p>
+          </div>
+        </div>
+      )}
+
+      {did && (
+        <div className="mt-6">
+          <h4 className="font-poppins text-lg font-semibold mb-2">DID Document</h4>
+          <div className="bg-gray-100 p-4 rounded-lg">
+            <p className="font-mono text-sm break-all">DID: {did.id}</p>
+          </div>
+        </div>
+      )}
+
+      {resource && (
+        <div className="mt-6">
+          <h4 className="font-poppins text-lg font-semibold mb-2">DID Resource</h4>
+          <div className="bg-gray-100 p-4 rounded-lg">
+            <p className="font-mono text-sm break-all">URI: {resource.resourceURI}</p>
+            <p className="font-mono text-sm break-all mt-2">Name: {resource.resourceName}</p>
+            <p className="font-mono text-sm break-all mt-2">Type: {resource.resourceType}</p>
+            <p className="font-mono text-sm break-all mt-2">Version: {resource.resourceVersion}</p>
+            <p className="font-mono text-sm break-all mt-2">Checksum: {resource.checksum}</p>
+            <p className="font-mono text-sm break-all mt-2">Created: {resource.created}</p>
+            {resource.nextVersionId && (
+              <p className="font-mono text-sm break-all mt-2">Next Version: {resource.nextVersionId}</p>
+            )}
+            {resource.previousVersionId && (
+              <p className="font-mono text-sm break-all mt-2">Previous Version: {resource.previousVersionId}</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

@@ -13,6 +13,8 @@ export default function AnalysisResult({ analysis }: AnalysisResultProps) {
     return d.toLocaleString();
   };
 
+  const isVideo = analysis.metadata.fileType.startsWith('video/');
+
   return (
     <div className="mt-8 p-6 bg-[#f4e6e4] rounded-lg">
       <div className="flex items-center justify-between mb-6">
@@ -43,24 +45,34 @@ export default function AnalysisResult({ analysis }: AnalysisResultProps) {
             <div className="space-y-2">
               <p><span className="text-gray-600">Type:</span> {analysis.metadata.fileType}</p>
               <p><span className="text-gray-600">Size:</span> {(analysis.metadata.fileSize / 1024 / 1024).toFixed(2)} MB</p>
-              {analysis.metadata.creationDate && (
+              {!isVideo && analysis.metadata.creationDate && (
                 <p><span className="text-gray-600">Created:</span> {formatDate(analysis.metadata.creationDate)}</p>
               )}
               {analysis.metadata.resolution && (
                 <p><span className="text-gray-600">Resolution:</span> {analysis.metadata.resolution}</p>
               )}
+              {isVideo && analysis.metadata.duration && (
+                <p><span className="text-gray-600">Duration:</span> {analysis.metadata.duration}</p>
+              )}
+              {isVideo && analysis.metadata.bitrate && (
+                <p><span className="text-gray-600">Bitrate:</span> {analysis.metadata.bitrate}</p>
+              )}
             </div>
           </div>
 
           <div className="bg-white p-4 rounded-lg">
-            <h4 className="font-poppins font-semibold mb-2">Device Information</h4>
+            <h4 className="font-poppins font-semibold mb-2">
+              {isVideo ? 'Video Information' : 'Device Information'}
+            </h4>
             <div className="space-y-2">
-              {analysis.metadata.deviceInfo ? (
+              {!isVideo && analysis.metadata.deviceInfo ? (
                 <p>{analysis.metadata.deviceInfo}</p>
+              ) : isVideo && analysis.metadata.codec ? (
+                <p><span className="text-gray-600">Codec:</span> {analysis.metadata.codec}</p>
               ) : (
-                <p className="text-gray-500">No device information available</p>
+                <p className="text-gray-500">No {isVideo ? 'video' : 'device'} information available</p>
               )}
-              {analysis.metadata.location && (
+              {!isVideo && analysis.metadata.location && (
                 <p><span className="text-gray-600">Location:</span> {analysis.metadata.location}</p>
               )}
               {analysis.metadata.software && (
