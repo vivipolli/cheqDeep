@@ -18,25 +18,15 @@ export interface MediaAnalysis {
   warnings: string[];
 }
 
-interface MetadataResult {
-  metadata: Partial<MediaAnalysis['metadata']>;
-  warnings: string[];
-}
-
-async function extractImageMetadata(file: File): Promise<MetadataResult> {
+export async function analyzeMedia(file: File): Promise<MediaAnalysis> {
   try {
     const buffer = await file.arrayBuffer();
     const exif = await exifr.parse(buffer);
     
-    if (!exif) {
-      return {
-        metadata: {},
-        warnings: ['No EXIF data found in the image']
-      };
-    }
-
-    return {
-      metadata: {
+    const metadata = {
+      fileSize: file.size,
+      fileType: file.type,
+      ...(exif ? {
         creationDate: exif.DateTimeOriginal || exif.CreateDate,
         deviceInfo: exif.Make && exif.Model ? `${exif.Make} ${exif.Model}` : undefined,
         location: exif.GPSLatitude && exif.GPSLongitude 
@@ -46,52 +36,17 @@ async function extractImageMetadata(file: File): Promise<MetadataResult> {
           ? `${exif.ImageWidth}x${exif.ImageHeight}` 
           : undefined,
         software: exif.Software,
-      },
-      warnings: []
+      } : {})
+    };
+
+    return {
+      isAuthentic: !!exif,
+      confidence: exif ? 0.95 : 0.3,
+      metadata,
+      warnings: exif ? [] : ['No EXIF data found in the media file']
     };
   } catch (error) {
-    console.error('Error extracting image metadata:', error);
-    return {
-      metadata: {},
-      warnings: ['Failed to extract image metadata']
-    };
+    console.error('Error analyzing media:', error);
+    throw error;
   }
-}
-
-async function extractVideoMetadata(file: File): Promise<MetadataResult> {
-  // For now, we'll return basic video information
-  // In a real implementation, you would use a client-side video metadata library
-  return {
-    metadata: {
-      resolution: '1920x1080', // Example resolution
-      duration: '00:00:00', // Example duration
-      codec: 'h264', // Example codec
-      bitrate: '2000 kb/s', // Example bitrate
-    },
-    warnings: ['Video metadata extraction is currently limited']
-  };
-}
-
-export async function analyzeMedia(file: File): Promise<MediaAnalysis> {
-  const baseMetadata = {
-    fileSize: file.size,
-    fileType: file.type,
-  };
-
-  const isImage = file.type.startsWith('image/');
-  const { metadata, warnings } = isImage 
-    ? await extractImageMetadata(file)
-    : await extractVideoMetadata(file);
-
-  const hasMetadata = warnings.length === 0;
-  
-  return {
-    isAuthentic: hasMetadata,
-    confidence: hasMetadata ? 0.85 : 0.3,
-    metadata: {
-      ...baseMetadata,
-      ...metadata,
-    },
-    warnings,
-  };
 } 

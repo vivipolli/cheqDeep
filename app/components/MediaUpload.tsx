@@ -5,9 +5,11 @@ import { useDropzone } from 'react-dropzone';
 import { analyzeMedia, MediaAnalysis } from '../services/mediaAnalysis';
 import { generateFileHash } from '../services/hashService';
 import { createDID, DIDDocument } from '../services/didService';
-import { createResource, DIDResource, ResourceMetadata } from '../services/resourceService';
+import { createResource, DIDResource } from '../services/resourceService';
+import { MediaMetadata } from '../types/media';
 import AnalysisResult from '../components/AnalysisResult';
 import Image from 'next/image';
+import exifr from 'exifr';
 
 export default function MediaUpload() {
   const [file, setFile] = useState<File | null>(null);
@@ -17,16 +19,106 @@ export default function MediaUpload() {
   const [hash, setHash] = useState<string>('');
   const [did, setDid] = useState<DIDDocument | null>(null);
   const [resource, setResource] = useState<DIDResource | null>(null);
+  const [mediaMetadata, setMediaMetadata] = useState<{ width?: number; height?: number; duration?: number }>({});
+  const [error, setError] = useState<string | null>(null);
+
+  const validateDeviceInfo = async (file: File): Promise<boolean> => {
+    try {
+      // Check if it's an image file
+      if (file.type.startsWith('image/')) {
+        const buffer = await file.arrayBuffer();
+        const exif = await exifr.parse(buffer);
+        
+        if (!exif) {
+          setError('No device information found. Please upload the original file directly from your camera or smartphone.');
+          return false;
+        }
+
+        // Check for essential EXIF data
+        const hasDeviceInfo = exif.Make && exif.Model;
+        const hasCaptureInfo = exif.DateTimeOriginal || exif.CreateDate;
+        
+        if (!hasDeviceInfo || !hasCaptureInfo) {
+          setError('Insufficient device information. Please upload the original file directly from your camera or smartphone.');
+          return false;
+        }
+
+        // Store device info for later use
+        setMediaMetadata(prev => ({
+          ...prev,
+          deviceInfo: {
+            make: exif.Make,
+            model: exif.Model,
+            software: exif.Software,
+            captureDate: exif.DateTimeOriginal || exif.CreateDate
+          }
+        }));
+
+        return true;
+      } 
+      // For video files, check filename patterns and basic metadata
+      else if (file.type.startsWith('video/')) {
+        const hasDeviceInfo = file.name.toLowerCase().includes('video_') || 
+                            file.name.toLowerCase().includes('mov_') ||
+                            file.name.toLowerCase().includes('dsc_');
+        
+        if (!hasDeviceInfo) {
+          setError('No device information found. Please upload the original video file directly from your camera or smartphone.');
+          return false;
+        }
+
+        return true;
+      }
+
+      setError('Unsupported file type. Please upload an image or video file.');
+      return false;
+    } catch (error) {
+      console.error('Error validating device info:', error);
+      setError('Error validating device information. Please try again with the original file.');
+      return false;
+    }
+  };
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     setFile(file);
     setIsAnalyzing(true);
+    setError(null);
     
     if (file) {
+      // Validate device info before proceeding
+      const isValidDevice = await validateDeviceInfo(file);
+      if (!isValidDevice) {
+        setIsAnalyzing(false);
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreview(reader.result as string);
+        const result = reader.result as string;
+        setPreview(result);
+        
+        // Get media dimensions
+        if (file.type.startsWith('image/')) {
+          const img = document.createElement('img');
+          img.onload = () => {
+            setMediaMetadata({
+              width: img.naturalWidth,
+              height: img.naturalHeight
+            });
+          };
+          img.src = result;
+        } else if (file.type.startsWith('video/')) {
+          const video = document.createElement('video');
+          video.onloadedmetadata = () => {
+            setMediaMetadata({
+              width: video.videoWidth,
+              height: video.videoHeight,
+              duration: video.duration
+            });
+          };
+          video.src = result;
+        }
       };
       reader.readAsDataURL(file);
 
@@ -42,28 +134,39 @@ export default function MediaUpload() {
         const didDocument = await createDID();
         setDid(didDocument);
 
-        // Create resource with hash
-        const resourceContent = JSON.stringify({
-          name: file.name,
-          version: '1.0',
-          hash: fileHash,
-          type: file.type,
-          size: file.size
-        });
-
-        const metadata: ResourceMetadata = {
-          name: 'media-verification',
-          type: 'MediaVerification',
-          version: '1.0',
-          alsoKnownAs: [{
-            id: `media-${fileHash.substring(0, 8)}`,
-            type: 'MediaVerification'
-          }]
+        // Get device information
+        const deviceInfo = {
+          id: navigator.userAgent,
+          type: file.type.startsWith('image/') ? 'camera' : 'video-camera',
+          manufacturer: 'unknown', // Could be enhanced with device detection
+          model: 'unknown'
         };
 
+        // Create metadata
+        const metadata: MediaMetadata = {
+          title: file.name,
+          description: 'Media authenticity verification',
+          mediaType: file.type.startsWith('image/') ? 'image' : 'video',
+          mediaHash: fileHash,
+          captureDevice: deviceInfo,
+          captureDetails: {
+            timestamp: new Date().toISOString(),
+            settings: {
+              resolution: mediaMetadata.width && mediaMetadata.height 
+                ? `${mediaMetadata.width}x${mediaMetadata.height}`
+                : 'unknown',
+              format: file.type,
+              duration: mediaMetadata.duration
+            }
+          },
+          creator: 'User', // Could be enhanced with user authentication
+          creationDate: new Date().toISOString()
+        };
+
+        // Create resource with hash and metadata
         const didResource = await createResource(
           didDocument.id,
-          resourceContent,
+          fileHash,
           metadata
         );
         setResource(didResource);
@@ -82,7 +185,7 @@ export default function MediaUpload() {
         setIsAnalyzing(false);
       }
     }
-  }, []);
+  }, [mediaMetadata]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -114,10 +217,23 @@ export default function MediaUpload() {
               <p className="font-manrope text-sm text-gray-500">
                 Supported formats: JPG, PNG, MP4, MOV
               </p>
+              <p className="font-manrope text-sm text-gray-500 mt-2">
+                ⚠️ Only original media from capture devices is accepted
+              </p>
             </div>
           )}
         </div>
       </div>
+
+      {error && (
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-600 font-manrope">{error}</p>
+          <p className="text-sm text-red-500 mt-2">
+            Current limitations: Cannot verify edited media (e.g., Photoshop) or professional camera exports.
+            This functionality will be implemented in future versions.
+          </p>
+        </div>
+      )}
 
       {isAnalyzing && (
         <div className="mt-6 text-center">
@@ -126,7 +242,7 @@ export default function MediaUpload() {
         </div>
       )}
 
-      {preview && (
+      {preview && !error && (
         <div className="mt-6">
           <h4 className="font-poppins text-lg font-semibold mb-2">Preview</h4>
           <div className="bg-[#f4e6e4] rounded-lg p-4">
@@ -146,18 +262,18 @@ export default function MediaUpload() {
         </div>
       )}
 
-      {analysis && <AnalysisResult analysis={analysis} />}
+      {analysis && !error && <AnalysisResult analysis={analysis} />}
 
-      {hash && (
+      {hash && !error && (
         <div className="mt-6">
-          <h4 className="font-poppins text-lg font-semibold mb-2">File Hash</h4>
+          <h4 className="font-poppins text-lg font-semibold mb-2">Media Hash</h4>
           <div className="bg-gray-100 p-4 rounded-lg">
             <p className="font-mono text-sm break-all">{hash}</p>
           </div>
         </div>
       )}
 
-      {did && (
+      {did && !error && (
         <div className="mt-6">
           <h4 className="font-poppins text-lg font-semibold mb-2">DID Document</h4>
           <div className="bg-gray-100 p-4 rounded-lg">
@@ -166,22 +282,15 @@ export default function MediaUpload() {
         </div>
       )}
 
-      {resource && (
+      {resource && !error && (
         <div className="mt-6">
-          <h4 className="font-poppins text-lg font-semibold mb-2">DID Resource</h4>
+          <h4 className="font-poppins text-lg font-semibold mb-2">Verification Certificate</h4>
           <div className="bg-gray-100 p-4 rounded-lg">
             <p className="font-mono text-sm break-all">URI: {resource.resourceURI}</p>
-            <p className="font-mono text-sm break-all mt-2">Name: {resource.resourceName}</p>
             <p className="font-mono text-sm break-all mt-2">Type: {resource.resourceType}</p>
             <p className="font-mono text-sm break-all mt-2">Version: {resource.resourceVersion}</p>
             <p className="font-mono text-sm break-all mt-2">Checksum: {resource.checksum}</p>
             <p className="font-mono text-sm break-all mt-2">Created: {resource.created}</p>
-            {resource.nextVersionId && (
-              <p className="font-mono text-sm break-all mt-2">Next Version: {resource.nextVersionId}</p>
-            )}
-            {resource.previousVersionId && (
-              <p className="font-mono text-sm break-all mt-2">Previous Version: {resource.previousVersionId}</p>
-            )}
           </div>
         </div>
       )}

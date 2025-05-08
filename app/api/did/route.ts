@@ -7,43 +7,86 @@ export async function POST() {
     return NextResponse.json({ error: 'NEXT_PUBLIC_CHEQD_API_KEY is not set' }, { status: 500 });
   }
 
-  const params = new URLSearchParams();
-  params.append('network', 'testnet');
-  params.append('identifierFormatType', 'uuid');
-  params.append('verificationMethodType', 'Ed25519VerificationKey2018');
-  params.append('@context', 'https://www.w3.org/ns/did/v1');
-
   try {
-    console.log('Creating DID with params:', Object.fromEntries(params));
-    
-    const response = await fetch('https://api.cheqd.io/did/create', {
+    // Step 1: Create a keypair
+    const keyResponse = await fetch('https://studio-api.cheqd.net/key/create', {
       method: 'POST',
       headers: {
         'x-api-key': apiKey,
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
         'Accept': 'application/json',
-      },
-      body: params.toString(),
+      }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
+    if (!keyResponse.ok) {
+      const errorText = await keyResponse.text();
+      console.error('Failed to create keypair:', {
+        status: keyResponse.status,
+        statusText: keyResponse.statusText,
+        error: errorText
+      });
+      return NextResponse.json({ 
+        error: 'Failed to create keypair',
+        details: errorText
+      }, { status: keyResponse.status });
+    }
+
+    const keyData = await keyResponse.json();
+    console.log('Keypair created successfully:', {
+      kid: keyData.kid,
+      type: keyData.type
+    });
+
+    // Step 2: Create DID with the generated key
+    const didParams = {
+      network: 'testnet',
+      identifierFormatType: 'uuid',
+      assertionMethod: true,
+      options: {
+        key: keyData.kid,
+        verificationMethodType: 'Ed25519VerificationKey2018'
+      }
+    };
+
+    console.log('Creating DID with params:', didParams);
+    
+    const didResponse = await fetch('https://studio-api.cheqd.net/did/create', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(didParams)
+    });
+
+    if (!didResponse.ok) {
+      const errorText = await didResponse.text();
       console.error('Failed to create DID:', {
-        status: response.status,
-        statusText: response.statusText,
+        status: didResponse.status,
+        statusText: didResponse.statusText,
         error: errorText
       });
       return NextResponse.json({ 
         error: 'Failed to create DID',
         details: errorText
-      }, { status: response.status });
+      }, { status: didResponse.status });
     }
 
-    const data = await response.json();
-    console.log('DID created successfully:', data);
-    return NextResponse.json(data);
+    const didData = await didResponse.json();
+    console.log('DID created successfully:', {
+      did: didData.did,
+      keys: didData.keys
+    });
+
+    return NextResponse.json({
+      did: didData.did,
+      keys: didData.keys,
+      services: didData.services,
+      controllerKeys: didData.controllerKeys
+    });
   } catch (error) {
-    console.error('Error creating DID:', error);
+    console.error('Error in DID creation process:', error);
     return NextResponse.json({ 
       error: 'Failed to create DID',
       details: error instanceof Error ? error.message : 'Unknown error'

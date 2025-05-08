@@ -1,36 +1,105 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DeepCheq - Media Authenticity Verification
+
+A decentralized solution for verifying the authenticity of digital media using Cheqd's blockchain technology.
+
+## Overview
+
+DeepCheq provides a secure and immutable way to certify and verify digital media authenticity. Using Decentralized Identifiers (DIDs) and Verifiable Credentials, it creates a permanent record of media ownership and authenticity.
+
+## How It Works
+
+1. **Media Capture**
+   - User captures media (image/video/audio)
+   - System generates a unique hash
+   - Collects rich metadata from capture device
+
+2. **Digital Identity Creation**
+   - Generates cryptographic key pair
+   - Creates unique DID for the creator
+   - Establishes verifiable identity
+
+3. **Authenticity Certificate**
+   - Creates a blockchain-based certificate
+   - Links media hash to creator's DID
+   - Includes detailed capture metadata
+
+4. **Verification Process**
+   - Anyone can verify media authenticity
+   - Compares current hash with certificate
+   - Validates digital signatures
+
+  
+## Current Limitations
+
+### Media Source Verification
+Currently, DeepCheq only accepts media files that are directly uploaded from their original capture devices. This means:
+
+- ✅ Photos taken directly from smartphones
+- ✅ Videos recorded directly from mobile devices
+- ❌ Edited images (e.g., from Photoshop)
+- ❌ Professional camera exports
+- ❌ Screenshots
+- ❌ Downloaded media
+
+This limitation exists because we need to verify the authenticity of the media source. In future versions, we plan to implement:
+
+- Support for professional camera metadata
+- Verification of edited media with proper attribution
+- Integration with professional editing software
+- Support for batch uploads from professional equipment
+
+### Why This Limitation?
+
+The current system relies on device metadata to verify the authenticity of media. This is a security measure to ensure that only original content can be certified. We understand this may be restrictive for some use cases, but it's necessary to maintain the integrity of our verification system.
+
+## Features
+
+- **Hash-Based Verification**: Focus on authenticity without storage
+- **Rich Metadata**: Detailed capture device information
+- **Decentralized Verification**: No central authority needed
+- **Traceability**: Complete history of media authenticity
+- **Interoperability**: W3C standards (DIDs, Verifiable Credentials)
+
+## Future Features
+
+- **Premium Storage**: Optional media storage feature (coming soon)
+- **Advanced Analytics**: Detailed media usage statistics
+- **Batch Processing**: Multiple media verification
+- **API Access**: Developer tools for integration
 
 ## Getting Started
 
-First, run the development server:
-
+1. Clone the repository
+2. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Set up environment variables:
+```env
+NEXT_PUBLIC_CHEQD_API_KEY=your_api_key
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+4. Run the development server:
+```bash
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## API Integration
+
+The system uses Cheqd's Studio API for:
+- DID creation and management
+- Resource creation and verification
+- Key pair generation and management
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
+- [Cheqd Documentation](https://docs.cheqd.io)
+- [W3C Verifiable Credentials](https://www.w3.org/TR/vc-data-model/)
+- [Decentralized Identifiers](https://www.w3.org/TR/did-core/)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## License
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT License

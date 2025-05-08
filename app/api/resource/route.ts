@@ -9,33 +9,36 @@ export async function POST(request: Request) {
 
   try {
     const { did, content, metadata } = await request.json();
-    console.log('Creating resource with:', { did, metadata });
 
-    const params = new URLSearchParams();
-    params.append('data', content);
-    params.append('encoding', 'base64url');
-    params.append('name', metadata.name);
-    params.append('type', metadata.type);
-
-    if (metadata.version) {
-      params.append('version', metadata.version);
-    }
-    if (metadata.alsoKnownAs) {
-      params.append('alsoKnownAs', JSON.stringify(metadata.alsoKnownAs));
-    }
-    if (metadata.publicKeyHexs) {
-      params.append('publicKeyHexs', JSON.stringify(metadata.publicKeyHexs));
+    if (!did || !content || !metadata) {
+      return NextResponse.json({ 
+        error: 'Missing required fields',
+        details: 'did, content, and metadata are required'
+      }, { status: 400 });
     }
 
-    console.log('Resource params:', Object.fromEntries(params));
+    console.log('Creating resource with params:', { did, content, metadata });
 
-    const response = await fetch(`https://api.cheqd.io/resource/create/${did}`, {
+    const response = await fetch(`https://studio-api.cheqd.net/resource/create/${did}`, {
       method: 'POST',
       headers: {
         'x-api-key': apiKey,
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
-      body: params.toString(),
+      body: JSON.stringify({
+        content,
+        metadata: {
+          ...metadata,
+          type: 'VerifiableCredential',
+          issuer: did,
+          issuanceDate: new Date().toISOString(),
+          '@context': [
+            'https://www.w3.org/2018/credentials/v1',
+            'https://www.w3.org/ns/did/v1'
+          ]
+        }
+      })
     });
 
     if (!response.ok) {
