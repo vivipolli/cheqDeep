@@ -1,5 +1,3 @@
-import { MediaMetadata } from '../types/media';
-
 export interface DIDResource {
   resourceURI: string;
   resourceCollectionId: string;
@@ -14,52 +12,46 @@ export interface DIDResource {
   previousVersionId?: string;
 }
 
-export interface ResourceMetadata {
-  name: string;
-  type: string;
-  version?: string;
-  alsoKnownAs?: {
-    id: string;
-    type: string;
-  }[];
-  publicKeyHexs?: string[];
+interface ResourceMetadata {
+  title: string;
+  description: string;
+  fileType: string;
+  fileSize: number;
+  hash: string;
+  exifData?: {
+    creationDate?: string;
+    deviceInfo?: string;
+    location?: string;
+    resolution?: string;
+    software?: string;
+  };
 }
 
-export async function createResource(did: string, mediaHash: string, metadata: MediaMetadata): Promise<DIDResource> {
+export async function createResource(did: string, content: string, metadata: ResourceMetadata) {
   try {
-    const response = await fetch('/api/resource', {
+    const response = await fetch('/api/resource/create', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         did,
-        content: mediaHash,
-        metadata: {
-          ...metadata,
-          type: 'VerifiableCredential',
-          issuer: did,
-          issuanceDate: new Date().toISOString(),
-          '@context': [
-            'https://www.w3.org/2018/credentials/v1',
-            'https://www.w3.org/ns/did/v1'
-          ]
-        }
+        data: content,
+        encoding: 'base64url',
+        name: metadata.title,
+        type: 'MediaVerification'
       })
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to create resource: ${errorText}`);
+      const error = await response.json();
+      throw new Error(error.details || 'Failed to create resource');
     }
 
     return await response.json();
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('Error creating resource:', error);
-    if (error instanceof Error) {
-      throw new Error(`Failed to create resource: ${error.message}`);
-    }
-    throw new Error('Failed to create resource: Unknown error');
+    throw error;
   }
 }
 
@@ -79,26 +71,15 @@ export async function getResource(did: string, resourceId: string): Promise<DIDR
   }
 }
 
-interface VerificationDetails {
-  timestamp: string;
-  hash: string;
-  signature: string;
-  verifiedBy: string;
-}
-
-export async function verifyResource(did: string, resourceId: string, mediaHash: string): Promise<{ verified: boolean; details: VerificationDetails }> {
+export async function verifyResource(resourceId: string) {
   try {
-    const response = await fetch(`/api/resource/verify/${did}/${resourceId}`, {
+    const response = await fetch(`/api/resource/${resourceId}/verify`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ mediaHash })
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to verify resource: ${errorText}`);
+      const error = await response.json();
+      throw new Error(error.details || 'Failed to verify resource');
     }
 
     return await response.json();

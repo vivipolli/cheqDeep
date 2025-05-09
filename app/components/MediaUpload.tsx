@@ -4,12 +4,11 @@ import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { analyzeMedia, MediaAnalysis } from '../services/mediaAnalysis';
 import { generateFileHash } from '../services/hashService';
-import { createDID, DIDDocument } from '../services/didService';
+import { createDID } from '../services/didService';
 import { createResource, DIDResource } from '../services/resourceService';
-import { MediaMetadata } from '../types/media';
 import AnalysisResult from '../components/AnalysisResult';
 import Image from 'next/image';
-import exifr from 'exifr';
+import { DIDDocument } from '../types/did';
 
 export default function MediaUpload() {
   const [file, setFile] = useState<File | null>(null);
@@ -22,63 +21,6 @@ export default function MediaUpload() {
   const [mediaMetadata, setMediaMetadata] = useState<{ width?: number; height?: number; duration?: number }>({});
   const [error, setError] = useState<string | null>(null);
 
-  const validateDeviceInfo = async (file: File): Promise<boolean> => {
-    try {
-      // Check if it's an image file
-      if (file.type.startsWith('image/')) {
-        const buffer = await file.arrayBuffer();
-        const exif = await exifr.parse(buffer);
-        
-        if (!exif) {
-          setError('No device information found. Please upload the original file directly from your camera or smartphone.');
-          return false;
-        }
-
-        // Check for essential EXIF data
-        const hasDeviceInfo = exif.Make && exif.Model;
-        const hasCaptureInfo = exif.DateTimeOriginal || exif.CreateDate;
-        
-        if (!hasDeviceInfo || !hasCaptureInfo) {
-          setError('Insufficient device information. Please upload the original file directly from your camera or smartphone.');
-          return false;
-        }
-
-        // Store device info for later use
-        setMediaMetadata(prev => ({
-          ...prev,
-          deviceInfo: {
-            make: exif.Make,
-            model: exif.Model,
-            software: exif.Software,
-            captureDate: exif.DateTimeOriginal || exif.CreateDate
-          }
-        }));
-
-        return true;
-      } 
-      // For video files, check filename patterns and basic metadata
-      else if (file.type.startsWith('video/')) {
-        const hasDeviceInfo = file.name.toLowerCase().includes('video_') || 
-                            file.name.toLowerCase().includes('mov_') ||
-                            file.name.toLowerCase().includes('dsc_');
-        
-        if (!hasDeviceInfo) {
-          setError('No device information found. Please upload the original video file directly from your camera or smartphone.');
-          return false;
-        }
-
-        return true;
-      }
-
-      setError('Unsupported file type. Please upload an image or video file.');
-      return false;
-    } catch (error) {
-      console.error('Error validating device info:', error);
-      setError('Error validating device information. Please try again with the original file.');
-      return false;
-    }
-  };
-
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     setFile(file);
@@ -86,13 +28,6 @@ export default function MediaUpload() {
     setError(null);
     
     if (file) {
-      // Validate device info before proceeding
-      const isValidDevice = await validateDeviceInfo(file);
-      if (!isValidDevice) {
-        setIsAnalyzing(false);
-        return;
-      }
-
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
@@ -123,8 +58,15 @@ export default function MediaUpload() {
       reader.readAsDataURL(file);
 
       try {
+        // Analyze media using Python API
         const result = await analyzeMedia(file);
         setAnalysis(result);
+
+        if (!result.isAuthentic) {
+          setError('No device information found. Please upload the original file directly from your camera or smartphone.');
+          setIsAnalyzing(false);
+          return;
+        }
 
         // Generate file hash
         const fileHash = await generateFileHash(file);
@@ -134,53 +76,44 @@ export default function MediaUpload() {
         const didDocument = await createDID();
         setDid(didDocument);
 
-        // Get device information
-        const deviceInfo = {
-          id: navigator.userAgent,
-          type: file.type.startsWith('image/') ? 'camera' : 'video-camera',
-          manufacturer: 'unknown', // Could be enhanced with device detection
-          model: 'unknown'
-        };
-
-        // Create metadata
-        const metadata: MediaMetadata = {
-          title: file.name,
-          description: 'Media authenticity verification',
-          mediaType: file.type.startsWith('image/') ? 'image' : 'video',
-          mediaHash: fileHash,
-          captureDevice: deviceInfo,
-          captureDetails: {
-            timestamp: new Date().toISOString(),
-            settings: {
-              resolution: mediaMetadata.width && mediaMetadata.height 
-                ? `${mediaMetadata.width}x${mediaMetadata.height}`
-                : 'unknown',
-              format: file.type,
-              duration: mediaMetadata.duration
-            }
-          },
-          creator: 'User', // Could be enhanced with user authentication
-          creationDate: new Date().toISOString()
-        };
-
         // Create resource with hash and metadata
         const didResource = await createResource(
-          didDocument.id,
-          fileHash,
-          metadata
+          didDocument.did,
+          JSON.stringify({
+            hash: fileHash,
+            metadata: {
+              title: file.name,
+              description: 'Media authenticity verification',
+              fileType: file.type,
+              fileSize: file.size,
+              exifData: {
+                creationDate: result.metadata.DateTimeOriginal || result.metadata.CreateDate,
+                deviceInfo: result.metadata.deviceInfo,
+                location: result.metadata.location,
+                resolution: result.metadata.resolution,
+                software: result.metadata.software
+              }
+            }
+          }),
+          {
+            title: file.name,
+            description: 'Media authenticity verification',
+            fileType: file.type,
+            fileSize: file.size,
+            hash: fileHash,
+            exifData: {
+              creationDate: result.metadata.DateTimeOriginal || result.metadata.CreateDate,
+              deviceInfo: result.metadata.deviceInfo,
+              location: result.metadata.location,
+              resolution: result.metadata.resolution,
+              software: result.metadata.software
+            }
+          }
         );
         setResource(didResource);
       } catch (error) {
         console.error('Error processing file:', error);
-        setAnalysis({
-          isAuthentic: false,
-          confidence: 0,
-          metadata: {
-            fileSize: file.size,
-            fileType: file.type,
-          },
-          warnings: ['Failed to process media file'],
-        });
+        setError('Error processing media file. Please try again with the original file.');
       } finally {
         setIsAnalyzing(false);
       }
@@ -277,7 +210,7 @@ export default function MediaUpload() {
         <div className="mt-6">
           <h4 className="font-poppins text-lg font-semibold mb-2">DID Document</h4>
           <div className="bg-gray-100 p-4 rounded-lg">
-            <p className="font-mono text-sm break-all">DID: {did.id}</p>
+            <p className="font-mono text-sm break-all">DID: {did.did}</p>
           </div>
         </div>
       )}

@@ -8,16 +8,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { did, content, metadata } = await request.json();
+    const body = await request.json();
+    const { did, data, encoding, name, type } = body;
 
-    if (!did || !content || !metadata) {
-      return NextResponse.json({ 
-        error: 'Missing required fields',
-        details: 'did, content, and metadata are required'
-      }, { status: 400 });
+    if (!did || !data || !encoding || !name || !type) {
+      console.error('Missing required fields:', { did, data, encoding, name, type });
+      return NextResponse.json(
+        { error: 'Missing required fields', details: 'did, data, encoding, name, and type are required' },
+        { status: 400 }
+      );
     }
-
-    console.log('Creating resource with params:', { did, content, metadata });
 
     const response = await fetch(`https://studio-api.cheqd.net/resource/create/${did}`, {
       method: 'POST',
@@ -27,17 +27,10 @@ export async function POST(request: Request) {
         'Accept': 'application/json',
       },
       body: JSON.stringify({
-        content,
-        metadata: {
-          ...metadata,
-          type: 'VerifiableCredential',
-          issuer: did,
-          issuanceDate: new Date().toISOString(),
-          '@context': [
-            'https://www.w3.org/2018/credentials/v1',
-            'https://www.w3.org/ns/did/v1'
-          ]
-        }
+        data,
+        encoding,
+        name,
+        type
       })
     });
 
@@ -54,9 +47,9 @@ export async function POST(request: Request) {
       }, { status: response.status });
     }
 
-    const data = await response.json();
-    console.log('Resource created successfully:', data);
-    return NextResponse.json(data);
+    const responseData = await response.json();
+    console.log('Resource created successfully:', responseData);
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error('Error creating resource:', error);
     return NextResponse.json({ 

@@ -37,19 +37,34 @@ export async function POST() {
       type: keyData.type
     });
 
-    // Step 2: Create DID with the generated key
-    const didParams = {
-      network: 'testnet',
-      identifierFormatType: 'uuid',
-      assertionMethod: true,
-      options: {
-        key: keyData.kid,
-        verificationMethodType: 'Ed25519VerificationKey2018'
+    // Step 2: Get DID Document template
+    const didDocResponse = await fetch(
+      `https://did-registrar.cheqd.net/1.0/did-document?verificationMethod=Ed25519VerificationKey2020&methodSpecificIdAlgo=uuid&network=testnet&publicKeyHex=${keyData.publicKeyHex}`,
+      {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        }
       }
-    };
+    );
 
-    console.log('Creating DID with params:', didParams);
-    
+    if (!didDocResponse.ok) {
+      const errorText = await didDocResponse.text();
+      console.error('Failed to get DID document template:', {
+        status: didDocResponse.status,
+        statusText: didDocResponse.statusText,
+        error: errorText
+      });
+      return NextResponse.json({ 
+        error: 'Failed to get DID document template',
+        details: errorText
+      }, { status: didDocResponse.status });
+    }
+
+    const didDocData = await didDocResponse.json();
+    console.log('DID Document template received:', didDocData);
+
+    // Step 3: Create DID with the template and options
     const didResponse = await fetch('https://studio-api.cheqd.net/did/create', {
       method: 'POST',
       headers: {
@@ -57,7 +72,18 @@ export async function POST() {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify(didParams)
+      body: JSON.stringify({
+        network: 'testnet',
+        identifierFormatType: 'uuid',
+        assertionMethod: true,
+        options: {
+          key: keyData.kid,
+          verificationMethodType: 'Ed25519VerificationKey2018'
+        },
+        didDocument: {
+          ...didDocData.didDoc,
+        }
+      })
     });
 
     if (!didResponse.ok) {
