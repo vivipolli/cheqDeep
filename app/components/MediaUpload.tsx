@@ -6,9 +6,11 @@ import { analyzeMedia, MediaAnalysis } from '../services/mediaAnalysis';
 import { generateFileHash } from '../services/hashService';
 import { createDID } from '../services/didService';
 import { createResource, DIDResource } from '../services/resourceService';
+import { readFileAsBase64, uploadToIPFS, createVideoThumbnail } from '../services/mediaService';
 import AnalysisResult from '../components/AnalysisResult';
 import Image from 'next/image';
 import { DIDDocument } from '../types/did';
+import { ResourceMetadata } from '../types/resource';
 
 export default function MediaUpload() {
   const [file, setFile] = useState<File | null>(null);
@@ -76,41 +78,43 @@ export default function MediaUpload() {
         const didDocument = await createDID();
         setDid(didDocument);
 
-        // Create resource with hash and metadata
+        // Create thumbnail for media
+        let thumbnailUrl;
+        const content = await readFileAsBase64(file);
+        if (file.type.startsWith('image/')) {
+          // For images, we can use the file directly
+          thumbnailUrl = await uploadToIPFS(content);
+        } else if (file.type.startsWith('video/')) {
+          // For videos, we need to create a thumbnail first
+          const thumbnail = await createVideoThumbnail(content);
+          thumbnailUrl = await uploadToIPFS(thumbnail);
+        }
+
+        const metadata = {
+          title: file.name,
+          description: 'Media authenticity verification',
+          fileType: file.type,
+          fileSize: file.size,
+          hash: fileHash,
+          thumbnailUrl,
+          exifData: {
+            creationDate: result.metadata.DateTimeOriginal || result.metadata.CreateDate,
+            deviceInfo: result.metadata.deviceInfo,
+            location: result.metadata.location,
+            resolution: result.metadata.resolution,
+            software: result.metadata.software
+          }
+        } as ResourceMetadata;
+
         const didResource = await createResource(
           didDocument.did,
           JSON.stringify({
             hash: fileHash,
-            metadata: {
-              title: file.name,
-              description: 'Media authenticity verification',
-              fileType: file.type,
-              fileSize: file.size,
-              exifData: {
-                creationDate: result.metadata.DateTimeOriginal || result.metadata.CreateDate,
-                deviceInfo: result.metadata.deviceInfo,
-                location: result.metadata.location,
-                resolution: result.metadata.resolution,
-                software: result.metadata.software
-              }
-            }
+            metadata
           }),
-          {
-            title: file.name,
-            description: 'Media authenticity verification',
-            fileType: file.type,
-            fileSize: file.size,
-            hash: fileHash,
-            exifData: {
-              creationDate: result.metadata.DateTimeOriginal || result.metadata.CreateDate,
-              deviceInfo: result.metadata.deviceInfo,
-              location: result.metadata.location,
-              resolution: result.metadata.resolution,
-              software: result.metadata.software
-            }
-          }
+          metadata
         );
-        setResource(didResource);
+        setResource(didResource.resource);
       } catch (error) {
         console.error('Error processing file:', error);
         setError('Error processing media file. Please try again with the original file.');
@@ -134,16 +138,16 @@ export default function MediaUpload() {
       <div
         {...getRootProps()}
         className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
-          ${isDragActive ? 'border-[#fe5602] bg-[#f4e6e4]' : 'border-gray-300 hover:border-[#fe5602]'}`}
+          ${isDragActive ? 'border-[#2ECC71] bg-[#1F2B50]/5' : 'border-gray-300 hover:border-[#2ECC71]'}`}
       >
         <input {...getInputProps()} />
         <div className="space-y-4">
           <div className="text-4xl">📸</div>
           {isDragActive ? (
-            <p className="text-[#fe5602] font-manrope">Drop your file here...</p>
+            <p className="text-[#2ECC71] font-manrope">Drop your file here...</p>
           ) : (
             <div className="space-y-2">
-              <h3 className="font-poppins text-xl font-semibold">Upload your media</h3>
+              <h3 className="font-poppins text-xl font-semibold text-[#1F2B50]">Upload your media</h3>
               <p className="font-manrope text-gray-600">
                 Drag and drop your image or video here, or click to select files
               </p>
@@ -170,15 +174,15 @@ export default function MediaUpload() {
 
       {isAnalyzing && (
         <div className="mt-6 text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#fe5602] border-t-transparent"></div>
-          <p className="mt-2 text-gray-600">Analyzing media...</p>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#2ECC71] border-t-transparent"></div>
+          <p className="mt-2 text-gray-600">Generating verification certificate...</p>
         </div>
       )}
 
       {preview && !error && (
         <div className="mt-6">
-          <h4 className="font-poppins text-lg font-semibold mb-2">Preview</h4>
-          <div className="bg-[#f4e6e4] rounded-lg p-4">
+          <h4 className="font-poppins text-lg font-semibold mb-2 text-[#1F2B50]">Preview</h4>
+          <div className="bg-[#1F2B50]/5 rounded-lg p-4">
             {file?.type.startsWith('image/') ? (
               <div className="relative w-full h-64">
                 <Image

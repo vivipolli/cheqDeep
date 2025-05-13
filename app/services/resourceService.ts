@@ -12,6 +12,11 @@ export interface DIDResource {
   previousVersionId?: string;
 }
 
+interface ResourceResponse {
+  resource: DIDResource;
+  thumbnailUrl?: string;
+}
+
 interface ResourceMetadata {
   title: string;
   description: string;
@@ -27,8 +32,14 @@ interface ResourceMetadata {
   };
 }
 
-export async function createResource(did: string, content: string, metadata: ResourceMetadata) {
+export async function createResource(did: string, content: string, metadata: ResourceMetadata): Promise<ResourceResponse> {
   try {
+    // Convert content to base64url
+    const base64Content = btoa(content)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
     const response = await fetch('/api/resource/create', {
       method: 'POST',
       headers: {
@@ -36,10 +47,11 @@ export async function createResource(did: string, content: string, metadata: Res
       },
       body: JSON.stringify({
         did,
-        data: content,
+        data: base64Content,
         encoding: 'base64url',
         name: metadata.title,
-        type: 'MediaVerification'
+        type: 'MediaVerification',
+        metadata
       })
     });
 
@@ -48,7 +60,8 @@ export async function createResource(did: string, content: string, metadata: Res
       throw new Error(error.details || 'Failed to create resource');
     }
 
-    return await response.json();
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error creating resource:', error);
     throw error;

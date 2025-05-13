@@ -9,7 +9,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { did, data, encoding, name, type } = body;
+    const { did, data, encoding, name, type, metadata } = body;
 
     if (!did || !data || !encoding || !name || !type) {
       console.error('Missing required fields:', { did, data, encoding, name, type });
@@ -19,6 +19,19 @@ export async function POST(request: Request) {
       );
     }
 
+    // Parse the data to include metadata
+    const parsedData = JSON.parse(atob(data));
+    const updatedData = {
+      ...parsedData,
+      metadata
+    };
+
+    // Convert back to base64
+    const updatedBase64Data = btoa(JSON.stringify(updatedData))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
     const response = await fetch(`https://studio-api.cheqd.net/resource/create/${did}`, {
       method: 'POST',
       headers: {
@@ -27,7 +40,7 @@ export async function POST(request: Request) {
         'Accept': 'application/json',
       },
       body: JSON.stringify({
-        data,
+        data: updatedBase64Data,
         encoding,
         name,
         type

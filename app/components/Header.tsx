@@ -14,6 +14,9 @@ export default function Header() {
             <Link href="/certify" className="text-gray-600 hover:text-[#1F2B50] transition-colors">
               Certify
             </Link>
+            <Link href="/verify" className="text-gray-600 hover:text-[#1F2B50] transition-colors">
+              Verify
+            </Link>
             <Link href="#how-it-works" className="text-gray-600 hover:text-[#1F2B50] transition-colors">
               How It Works
             </Link>
