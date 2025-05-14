@@ -92,6 +92,7 @@ npm install
 NEXT_PUBLIC_CHEQD_API_KEY=your_api_key
 NEXT_PUBLIC_PINATA_API_KEY=your_pinata_key
 NEXT_PUBLIC_PINATA_SECRET_KEY=your_pinata_secret
+NEXT_PUBLIC_MIDIA_VALIDATOR_URL=midia_validator_api
 ```
 
 4. Run the development server:
