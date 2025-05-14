@@ -32,6 +32,31 @@ interface ResourceMetadata {
   };
 }
 
+export interface VerificationResponse {
+  didDocument: {
+    id: string;
+    verificationMethod: Array<{
+      type: string;
+      publicKeyBase58: string;
+    }>;
+  };
+  didDocumentMetadata: {
+    created: string;
+    linkedResourceMetadata: Array<{
+      resourceURI: string;
+      resourceName: string;
+      resourceType: string;
+      mediaType: string;
+      resourceVersion: string;
+      created: string;
+      checksum: string;
+      metadata?: {
+        thumbnailUrl?: string;
+      };
+    }>;
+  };
+}
+
 export async function createResource(did: string, content: string, metadata: ResourceMetadata): Promise<ResourceResponse> {
   try {
     // Convert content to base64url
@@ -68,31 +93,13 @@ export async function createResource(did: string, content: string, metadata: Res
   }
 }
 
-export async function getResource(did: string, resourceId: string): Promise<DIDResource> {
+export async function verifyResource(did: string): Promise<VerificationResponse> {
   try {
-    const response = await fetch(`/api/resource/${did}/${resourceId}`);
-
+    const response = await fetch(`/api/resource/search/${did}`);
+    
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to get resource: ${errorText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error getting resource:', error);
-    throw error;
-  }
-}
-
-export async function verifyResource(resourceId: string) {
-  try {
-    const response = await fetch(`/api/resource/${resourceId}/verify`, {
-      method: 'POST',
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.details || 'Failed to verify resource');
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to verify certificate');
     }
 
     return await response.json();
@@ -100,4 +107,4 @@ export async function verifyResource(resourceId: string) {
     console.error('Error verifying resource:', error);
     throw error;
   }
-} 
+}

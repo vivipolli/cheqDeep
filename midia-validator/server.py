@@ -6,14 +6,12 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 import tempfile
 import piexif
-from datetime import datetime
 
 app = FastAPI(title="Media Validator API")
 
-# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -101,13 +99,11 @@ def extract_video_metadata(video_path: str) -> dict:
             
         data = json.loads(result.stdout)
         
-        # Extract metadata
         metadata = {
             "fileSize": os.path.getsize(video_path),
             "fileType": "video/mp4",  # Assuming MP4 for now
         }
         
-        # Get video stream info
         if "streams" in data and len(data["streams"]) > 0:
             stream = data["streams"][0]
             metadata.update({
@@ -116,24 +112,14 @@ def extract_video_metadata(video_path: str) -> dict:
                 "duration": str(stream.get("duration", "unknown")),
             })
             
-        # Get format info
         if "format" in data:
             format_info = data["format"]
             metadata.update({
                 "bitrate": format_info.get("bit_rate", "unknown"),
             })
             
-        # Try to get creation date from filename
         filename = os.path.basename(video_path)
-        if "vokoscreenNG" in filename:
-            try:
-                # Extract date from vokoscreenNG filename format
-                date_str = filename.split("vokoscreenNG-")[1].split("_")[0]
-                time_str = filename.split("_")[1].split(".")[0]
-                datetime_str = f"{date_str} {time_str.replace('-', ':')}"
-                metadata["DateTimeOriginal"] = datetime_str
-            except:
-                pass
+        metadata["FileName"] = filename
                 
         return metadata
         
@@ -144,18 +130,15 @@ def extract_video_metadata(video_path: str) -> dict:
 def extract_image_metadata(image_path: str) -> dict:
     try:
         with Image.open(image_path) as img:
-            # Get basic image info
             metadata = {
                 "fileSize": os.path.getsize(image_path),
                 "fileType": img.format,
                 "resolution": f"{img.width}x{img.height}",
             }
 
-            # Try to get EXIF data
             try:
                 exif_dict = piexif.load(image_path)
                 if exif_dict:
-                    # Extract device info
                     if "0th" in exif_dict:
                         if piexif.ImageIFD.Make in exif_dict["0th"]:
                             metadata["Make"] = exif_dict["0th"][piexif.ImageIFD.Make].decode('utf-8', errors='ignore')
@@ -195,7 +178,6 @@ def extract_image_metadata(image_path: str) -> dict:
 @app.post("/analyze")
 async def analyze_media(file: UploadFile = File(...)):
     try:
-        # Create a temporary file
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             content = await file.read()
             temp_file.write(content)
@@ -203,7 +185,6 @@ async def analyze_media(file: UploadFile = File(...)):
             temp_path = temp_file.name
 
         try:
-            # Process the file based on its type
             if file.content_type.startswith('image/'):
                 metadata = extract_image_metadata(temp_path)
                 is_authentic = bool(metadata.get('Make') and metadata.get('Model'))
@@ -224,7 +205,6 @@ async def analyze_media(file: UploadFile = File(...)):
             }
                 
         finally:
-            # Clean up the temporary file
             try:
                 os.unlink(temp_path)
             except Exception as e:

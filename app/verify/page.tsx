@@ -2,33 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-
-interface ResourceMetadata {
-  resourceURI: string;
-  resourceName: string;
-  resourceType: string;
-  mediaType: string;
-  resourceVersion: string;
-  created: string;
-  checksum: string;
-  metadata?: {
-    thumbnailUrl?: string;
-  };
-}
-
-interface VerificationResponse {
-  didDocument: {
-    id: string;
-    verificationMethod: Array<{
-      type: string;
-      publicKeyBase58: string;
-    }>;
-  };
-  didDocumentMetadata: {
-    created: string;
-    linkedResourceMetadata: ResourceMetadata[];
-  };
-}
+import { verifyResource, VerificationResponse } from '@/app/services/resourceService';
 
 export default function Verify() {
   const [did, setDid] = useState('');
@@ -43,21 +17,9 @@ export default function Verify() {
     setVerification(null);
 
     try {
-      console.log('Verifying DID:', did);
-      const response = await fetch(`/api/resource/search/${did}`);
-      console.log('API Response Status:', response.status);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('API Error:', errorData);
-        throw new Error(errorData.message || 'Failed to verify certificate');
-      }
-
-      const data = await response.json();
-      console.log('API Response Data:', data);
+      const data = await verifyResource(did);
       setVerification(data);
     } catch (err) {
-      console.error('Verification Error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred during verification');
     } finally {
       setLoading(false);
@@ -130,16 +92,15 @@ export default function Verify() {
                         <p className="text-sm"><span className="font-medium">Created:</span> {new Date(resource.created).toLocaleString()}</p>
                         <p className="text-sm"><span className="font-medium">Checksum:</span> <span className="font-mono break-all">{resource.checksum}</span></p>
                         
-                        {/* Media Preview */}
                         {resource.metadata?.thumbnailUrl && (
                           <div className="mt-4">
-                            <h4 className="text-sm font-medium text-[#1F2B50] mb-2">Media Preview</h4>
+                            <h4 className="text-sm font-medium text-[#1F2B50] mb-2 text-[#1F2B50]">Media Preview</h4>
                             <div className="bg-white p-4 rounded-lg">
                               <Image 
                                 src={resource.metadata.thumbnailUrl} 
                                 alt="Media preview" 
-                                width={800}
-                                height={600}
+                                width={300}
+                                height={300}
                                 className="max-w-full h-auto rounded-lg"
                               />
                             </div>

@@ -27,7 +27,6 @@ export async function GET(request: any, context: any) {
   }
 
   try {
-    // First, get the DID document
     const didResponse = await fetch(
       `https://studio-api.cheqd.net/resource/search/${did}`,
       {
@@ -43,44 +42,30 @@ export async function GET(request: any, context: any) {
     }
 
     const didData: any = await didResponse.json();
-    console.log('DID data:', didData);
 
-    // For each resource in the DID document, fetch its content from the resolver
     const resourcesWithContent = await Promise.all(
       didData.didDocumentMetadata.linkedResourceMetadata.map(async (resource: ResourceMetadata) => {
         try {
-          // Extract resource ID from resourceURI
           const resourceId = resource.resourceURI.split('/').pop();
-          console.log('Fetching resource:', resourceId);
           
-          // Fetch resource content from resolver
           const resolverResponse = await fetch(
             `https://resolver.cheqd.net/1.0/identifiers/${did}/resources/${resourceId}`
           );
 
           if (!resolverResponse.ok) {
-            console.error(`Failed to fetch resource ${resourceId} from resolver`);
             return resource;
           }
 
           const resolverData = await resolverResponse.json();
-          console.log('Resolver data:', resolverData);
 
-          // If we have a thumbnail URL, verify it's accessible
           if (resolverData.metadata?.thumbnailUrl) {
-            console.log('Checking thumbnail URL:', resolverData.metadata.thumbnailUrl);
             try {
-              const thumbnailResponse = await fetch(resolverData.metadata.thumbnailUrl);
-              console.log('Thumbnail response status:', thumbnailResponse.status);
-              if (!thumbnailResponse.ok) {
-                console.error('Thumbnail not accessible:', thumbnailResponse.statusText);
-              }
-            } catch (thumbnailError) {
-              console.error('Error checking thumbnail:', thumbnailError);
+              await fetch(resolverData.metadata.thumbnailUrl);
+            } catch (error) {
+              console.error('Error checking thumbnail:', error);
             }
           }
 
-          // Return the resource with its metadata
           return {
             ...resource,
             metadata: resolverData.metadata
@@ -92,7 +77,6 @@ export async function GET(request: any, context: any) {
       })
     );
 
-    // Update the DID document with the resource content
     didData.didDocumentMetadata.linkedResourceMetadata = resourcesWithContent;
 
     return NextResponse.json(didData);
