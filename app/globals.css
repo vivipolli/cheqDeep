@@ -9,6 +9,15 @@
   --accent-rgb: 46, 204, 113;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-rgb: 17, 24, 39;
+    --primary-rgb: 255, 255, 255;
+    --accent-rgb: 46, 204, 113;
+  }
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-rgb));
@@ -26,16 +35,16 @@ html {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(var(--foreground-rgb), 0.05);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(var(--foreground-rgb), 0.1);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(var(--foreground-rgb), 0.2);
 }
 
 /* Focus styles */
@@ -51,7 +60,7 @@ html {
 
 @layer base {
   body {
-    @apply bg-[#ffffff] text-[#000000];
+    @apply bg-[rgb(var(--background-rgb))] text-[rgb(var(--foreground-rgb))];
   }
 
   h1,
@@ -75,17 +84,4 @@ html {
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
