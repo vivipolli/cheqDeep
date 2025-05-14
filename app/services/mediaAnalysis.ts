@@ -29,7 +29,7 @@ export async function analyzeMedia(file: File): Promise<MediaAnalysis> {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_MIDIA_VALIDATOR_URL}analyze`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_MIDIA_VALIDATOR_URL}/analyze`, {
       method: 'POST',
       body: formData
     });
