@@ -6,9 +6,10 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import tempfile
 import piexif
+from moviepy.editor import VideoFileClip
 
 app = FastAPI(title="Media Validator API")
 
@@ -16,10 +17,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
-    max_age=3600,
 )
 
 def get_image_metadata(image_path: str, include_gps: bool = False) -> Dict[str, Any]:
@@ -82,42 +81,19 @@ def extract_metadata(file_path: str, include_gps: bool = False) -> Dict[str, Any
 
 def extract_video_metadata(video_path: str) -> dict:
     try:
-        # Get basic video info using ffprobe
-        cmd = [
-            'ffprobe',
-            '-v', 'error',
-            '-select_streams', 'v:0',
-            '-show_entries', 'stream=width,height,duration,codec_name',
-            '-show_entries', 'format=duration,size,bit_rate',
-            '-of', 'json',
-            video_path
-        ]
-        
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        
-        if result.returncode != 0:
-            print(f"FFprobe error: {result.stderr}")
-            raise Exception(f"FFprobe error: {result.stderr}")
-            
-        data = json.loads(result.stdout)
-        
         metadata = {
             "fileSize": os.path.getsize(video_path),
-            "fileType": "video/mp4",  # Assuming MP4 for now
+            "fileType": "video/mp4",
+            "FileName": os.path.basename(video_path)
         }
         
-        if "streams" in data and len(data["streams"]) > 0:
-            stream = data["streams"][0]
+        with VideoFileClip(video_path) as clip:
             metadata.update({
-                "resolution": f"{stream.get('width', 'unknown')}x{stream.get('height', 'unknown')}",
-                "codec": stream.get("codec_name", "unknown"),
-                "duration": str(stream.get("duration", "unknown")),
-            })
-            
-        if "format" in data:
-            format_info = data["format"]
-            metadata.update({
-                "bitrate": format_info.get("bit_rate", "unknown"),
+                "resolution": f"{clip.size[0]}x{clip.size[1]}",
+                "duration": str(clip.duration),
+                "fps": str(clip.fps),
+                "codec": "unknown",  # moviepy doesn't provide codec info
+                "bitrate": "unknown"  # moviepy doesn't provide bitrate info
             })
             
         filename = os.path.basename(video_path)
@@ -138,6 +114,7 @@ def extract_image_metadata(image_path: str) -> dict:
                 "resolution": f"{img.width}x{img.height}",
             }
 
+            # Try to get EXIF data
             try:
                 exif_dict = piexif.load(image_path)
                 if exif_dict:
@@ -180,6 +157,7 @@ def extract_image_metadata(image_path: str) -> dict:
 @app.post("/analyze")
 async def analyze_media(file: UploadFile = File(...)):
     try:
+        # Create a temporary file
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             content = await file.read()
             temp_file.write(content)
@@ -187,6 +165,7 @@ async def analyze_media(file: UploadFile = File(...)):
             temp_path = temp_file.name
 
         try:
+            # Process the file based on its type
             if file.content_type.startswith('image/'):
                 metadata = extract_image_metadata(temp_path)
                 is_authentic = bool(metadata.get('Make') and metadata.get('Model'))
@@ -207,6 +186,7 @@ async def analyze_media(file: UploadFile = File(...)):
             }
                 
         finally:
+            # Clean up the temporary file
             try:
                 os.unlink(temp_path)
             except Exception as e:
