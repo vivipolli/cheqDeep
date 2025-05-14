@@ -69,7 +69,7 @@ export default function Home() {
                 },
                 {
                   number: '02',
-                  title: 'We analyze for AI generation',
+                  title: 'We analyze the metadata',
                   description: 'Deep analysis of metadata and technical markers'
                 },
                 {

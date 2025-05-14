@@ -2,6 +2,14 @@
 
 A decentralized solution for verifying media authenticity using Cheqd's blockchain technology and DID Linked Resources.
 
+## Hackathon Alignment 🎯
+
+This project addresses the "Content Credentials" challenge by providing:
+- **Provenance Verification**: Immutable proof of media origin and creation
+- **Veracity Assurance**: Technical verification of human-created content
+- **Trust Infrastructure**: DID-based system for media authentication
+- **Anti-AI Detection**: Verification of non-AI generated content
+
 ## The Challenge 🎯
 
 In today's digital landscape, AI-generated content is becoming increasingly indistinguishable from human-created media. This poses significant challenges for:
@@ -84,12 +92,10 @@ CheqDeep leverages Cheqd's blockchain technology to create an immutable chain of
   - Technical marker verification
 - **Cheqd Studio API**: DID and Resource management
 - **Pinata API**: IPFS storage integration
-- **Vercel Blob**: Large file storage and delivery
 
 ### Data Flow
 1. **Media Upload**
    - Client-side compression
-   - Vercel Blob for large files
    - IPFS for permanent storage
 
 2. **Authentication**
@@ -112,12 +118,38 @@ CheqDeep leverages Cheqd's blockchain technology to create an immutable chain of
 
 ### Priority Features
 - **User Authentication**: Login system with certificate history
-- **Payment Integration**: Pay-per-verification system
+- **Flexible Pricing**: 
+  - Free tier: 1 verification per day
+  - Pay-as-you-go: Pay only for extra verifications
+  - Pro subscription: Unlimited verifications
 
 ### Technical Improvements
 - Support for professional camera metadata
 - AI detection algorithms
 - Batch processing capabilities
+- Advanced metadata analysis
+
+## Monetization Strategy 💰
+
+### Free Tier
+- 1 verification per day
+- Basic metadata analysis
+- Public verification links
+- No credit card required
+
+### Pay-as-you-go
+- Pay only when you need more
+- No monthly commitment
+- Same-day verification
+- Keep your free daily verification
+
+### Pro Subscription
+- Unlimited verifications
+- Priority processing
+- Advanced metadata analysis
+- Custom verification pages
+- API access
+- Batch processing
 
 ## Getting Started 📥
 
