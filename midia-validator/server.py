@@ -9,7 +9,8 @@ from PIL.ExifTags import TAGS, GPSTAGS
 from typing import Dict, Any, Optional
 import tempfile
 import piexif
-from moviepy.editor import VideoFileClip
+from hachoir.parser import createParser
+from hachoir.metadata import extractMetadata
 
 app = FastAPI(title="Media Validator API")
 
@@ -20,6 +21,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Configure maximum file size (100MB)
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB in bytes
 
 def get_image_metadata(image_path: str, include_gps: bool = False) -> Dict[str, Any]:
     image = Image.open(image_path)
@@ -87,17 +91,21 @@ def extract_video_metadata(video_path: str) -> dict:
             "FileName": os.path.basename(video_path)
         }
         
-        with VideoFileClip(video_path) as clip:
-            metadata.update({
-                "resolution": f"{clip.size[0]}x{clip.size[1]}",
-                "duration": str(clip.duration),
-                "fps": str(clip.fps),
-                "codec": "unknown",  # moviepy doesn't provide codec info
-                "bitrate": "unknown"  # moviepy doesn't provide bitrate info
-            })
-            
-        filename = os.path.basename(video_path)
-        metadata["FileName"] = filename
+        parser = createParser(video_path)
+        if parser:
+            with parser:
+                meta = extractMetadata(parser)
+                if meta:
+                    metadata.update({
+                        "duration": str(meta.get('duration', 'unknown')),
+                        "bitrate": str(meta.get('bit_rate', 'unknown')),
+                        "width": str(meta.get('width', 'unknown')),
+                        "height": str(meta.get('height', 'unknown')),
+                        "codec": str(meta.get('codec', 'unknown')),
+                        "fps": str(meta.get('frame_rate', 'unknown'))
+                    })
+                    if meta.get('width') and meta.get('height'):
+                        metadata["resolution"] = f"{meta.get('width')}x{meta.get('height')}"
                 
         return metadata
         
@@ -157,22 +165,27 @@ def extract_image_metadata(image_path: str) -> dict:
 @app.post("/analyze")
 async def analyze_media(file: UploadFile = File(...)):
     try:
-        # Create a temporary file
+        content = await file.read()
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large. Maximum size is {MAX_FILE_SIZE/1024/1024}MB"
+            )
+
+        # Create a temporary file for the original content
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            content = await file.read()
             temp_file.write(content)
             temp_file.flush()
             temp_path = temp_file.name
 
         try:
-            # Process the file based on its type
+            # Compress the file based on its type
             if file.content_type.startswith('image/'):
                 metadata = extract_image_metadata(temp_path)
                 is_authentic = bool(metadata.get('Make') and metadata.get('Model'))
                 confidence = 0.95 if is_authentic else 0.0
             elif file.content_type.startswith('video/'):
                 metadata = extract_video_metadata(temp_path)
-                # For videos, we consider authentic if we can extract metadata
                 is_authentic = bool(metadata.get('resolution') and metadata.get('duration'))
                 confidence = 0.95 if is_authentic else 0.0
             else:
@@ -192,6 +205,8 @@ async def analyze_media(file: UploadFile = File(...)):
             except Exception as e:
                 print(f"Error deleting temporary file: {str(e)}")
                 
+    except HTTPException as he:
+        raise he
     except Exception as e:
         print(f"Error processing file: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

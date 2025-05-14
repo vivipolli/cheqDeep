@@ -10,6 +10,7 @@ export async function POST(request: Request) {
     const { videoContent } = await request.json();
     
     const videoPath = join(tmpdir(), `video-${Date.now()}.mp4`);
+    const compressedPath = join(tmpdir(), `compressed-${Date.now()}.mp4`);
     
     const videoBuffer = Buffer.from(videoContent.split(',')[1], 'base64');
     const writeStream = createWriteStream(videoPath);
@@ -22,9 +23,26 @@ export async function POST(request: Request) {
     });
     writeStream.end();
 
-    // Generate thumbnail
+    // Compress video first
     await new Promise((resolve, reject) => {
       ffmpeg(videoPath)
+        .outputOptions([
+          '-vf scale=640:-1',  // Scale to 640px width
+          '-c:v libx264',      // Use H.264 codec
+          '-crf 28',           // Compression quality
+          '-preset fast',      // Encoding speed
+          '-c:a aac',          // Audio codec
+          '-b:a 128k'          // Audio bitrate
+        ])
+        .output(compressedPath)
+        .on('end', resolve)
+        .on('error', reject)
+        .run();
+    });
+
+    // Generate thumbnail from compressed video
+    await new Promise((resolve, reject) => {
+      ffmpeg(compressedPath)
         .on('end', resolve)
         .on('error', reject)
         .screenshot({
@@ -41,6 +59,7 @@ export async function POST(request: Request) {
     // Clean up temporary files
     await Promise.all([
       unlink(videoPath),
+      unlink(compressedPath),
       unlink(join(tmpdir(), 'thumbnail.jpg'))
     ]);
 
