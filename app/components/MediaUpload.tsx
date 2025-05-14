@@ -71,30 +71,9 @@ export default function MediaUpload() {
           // For images, we can use the file directly
           thumbnailUrl = await uploadToIPFS(content);
         } else if (file.type.startsWith('video/')) {
-          // Compress video before creating thumbnail
-          const compressedVideo = await new Promise<string>((resolve, reject) => {
-            const video = document.createElement('video');
-            video.src = content;
-            video.onloadedmetadata = () => {
-              const canvas = document.createElement('canvas');
-              const ctx = canvas.getContext('2d');
-              canvas.width = 640;
-              canvas.height = (video.videoHeight * 640) / video.videoWidth;
-              
-              video.currentTime = 1; // Get frame at 1 second
-              video.onseeked = () => {
-                if (ctx) {
-                  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                  resolve(canvas.toDataURL('image/jpeg', 0.7));
-                } else {
-                  reject(new Error('Could not get canvas context'));
-                }
-              };
-            };
-            video.onerror = () => reject(new Error('Error loading video'));
-          });
-          
-          thumbnailUrl = await uploadToIPFS(compressedVideo);
+          // Create thumbnail in browser
+          const thumbnail = await createVideoThumbnail(content);
+          thumbnailUrl = await uploadToIPFS(thumbnail);
         }
 
         const metadata = {

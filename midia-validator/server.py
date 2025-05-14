@@ -11,6 +11,10 @@ import tempfile
 import piexif
 from hachoir.parser import createParser
 from hachoir.metadata import extractMetadata
+from pillow_heif import register_heif_opener
+
+# Register HEIF opener
+register_heif_opener()
 
 app = FastAPI(title="Media Validator API")
 
@@ -172,14 +176,15 @@ async def analyze_media(file: UploadFile = File(...)):
                 detail=f"File too large. Maximum size is {MAX_FILE_SIZE/1024/1024}MB"
             )
 
-        # Create a temporary file for the original content
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        # Create a temporary file with proper extension
+        file_extension = os.path.splitext(file.filename)[1] if file.filename else '.jpg'
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
             temp_file.write(content)
             temp_file.flush()
             temp_path = temp_file.name
 
         try:
-            # Compress the file based on its type
+            # Process the file based on its type
             if file.content_type.startswith('image/'):
                 metadata = extract_image_metadata(temp_path)
                 is_authentic = bool(metadata.get('Make') and metadata.get('Model'))
