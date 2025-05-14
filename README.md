@@ -68,6 +68,46 @@ CheqDeep leverages Cheqd's blockchain technology to create an immutable chain of
 - Resource metadata validation
 - Blockchain signature verification
 
+## Architecture 🏗️
+
+### Frontend
+- **Next.js 14**: React framework with App Router
+- **Tailwind CSS**: Utility-first styling with dark mode support
+- **TypeScript**: Type-safe development
+- **Client Components**: Interactive UI elements
+- **Server Components**: Static and dynamic rendering
+
+### Backend Services
+- **Media Validator API**: FastAPI service for metadata extraction
+  - Image and video analysis
+  - EXIF data extraction
+  - Technical marker verification
+- **Cheqd Studio API**: DID and Resource management
+- **Pinata API**: IPFS storage integration
+- **Vercel Blob**: Large file storage and delivery
+
+### Data Flow
+1. **Media Upload**
+   - Client-side compression
+   - Vercel Blob for large files
+   - IPFS for permanent storage
+
+2. **Authentication**
+   - DID-based identity
+   - Resource verification
+   - Blockchain signatures
+
+3. **Verification**
+   - DID resolution
+   - Resource metadata validation
+   - Content hash verification
+
+### Infrastructure
+- **Vercel**: Frontend deployment
+- **Railway**: Media Validator API hosting
+- **IPFS**: Decentralized storage
+- **Cheqd Blockchain**: DID and Resource storage
+
 ## Future Enhancements 🚀
 
 ### Priority Features
