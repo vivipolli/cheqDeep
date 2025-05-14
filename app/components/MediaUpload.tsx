@@ -20,7 +20,6 @@ export default function MediaUpload() {
   const [hash, setHash] = useState<string>('');
   const [did, setDid] = useState<DIDDocument | null>(null);
   const [resource, setResource] = useState<DIDResource | null>(null);
-  const [mediaMetadata, setMediaMetadata] = useState<{ width?: number; height?: number; duration?: number }>({});
   const [error, setError] = useState<string | null>(null);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -38,22 +37,9 @@ export default function MediaUpload() {
         // Get media dimensions
         if (file.type.startsWith('image/')) {
           const img = document.createElement('img');
-          img.onload = () => {
-            setMediaMetadata({
-              width: img.naturalWidth,
-              height: img.naturalHeight
-            });
-          };
           img.src = result;
         } else if (file.type.startsWith('video/')) {
           const video = document.createElement('video');
-          video.onloadedmetadata = () => {
-            setMediaMetadata({
-              width: video.videoWidth,
-              height: video.videoHeight,
-              duration: video.duration
-            });
-          };
           video.src = result;
         }
       };
@@ -107,7 +93,7 @@ export default function MediaUpload() {
         } as ResourceMetadata;
 
         const didResource = await createResource(
-          didDocument.did,
+          didDocument.did as string,
           JSON.stringify({
             hash: fileHash,
             metadata
@@ -122,7 +108,7 @@ export default function MediaUpload() {
         setIsAnalyzing(false);
       }
     }
-  }, [mediaMetadata]);
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -214,7 +200,7 @@ export default function MediaUpload() {
         <div className="mt-6">
           <h4 className="font-poppins text-lg font-semibold mb-2">DID Document</h4>
           <div className="bg-gray-100 p-4 rounded-lg">
-            <p className="font-mono text-sm break-all">DID: {did.did}</p>
+            <p className="font-mono text-sm break-all">DID: {did.did as string}</p>
           </div>
         </div>
       )}

@@ -1,24 +1,23 @@
-export interface DIDDocument {
-  did: string;
-  keys: {
-    kid: string;
-    kms: string;
-    type: string;
-    publicKeyHex: string;
-    meta: {
-      algorithms: string[];
-    };
-    controller: string;
-  }[];
-  services: any[];
-  controllerKeys: {
-    kid: string;
-    kms: string;
-    type: string;
-    publicKeyHex: string;
-    meta: {
-      algorithms: string[];
-    };
-    controller: string;
-  }[];
-} 
+interface VerificationMethod {
+  id: string;
+  type: string;
+  controller: string;
+  publicKeyMultibase: string;
+}
+
+interface Service {
+  id: string;
+  type: string;
+  serviceEndpoint: string;
+}
+
+interface DIDDocument {
+  context: string[];
+  id: string;
+  controller: string;
+  verificationMethod: VerificationMethod[];
+  service: Service[];
+  [key: string]: unknown;
+}
+
+export type { DIDDocument, VerificationMethod, Service }; 

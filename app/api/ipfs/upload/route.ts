@@ -10,9 +10,13 @@ export async function POST(request: Request) {
       throw new Error('Pinata API credentials not configured');
     }
 
+    // Extract base64 data from data URL
+    const base64Data = content.split(',')[1];
+    const buffer = Buffer.from(base64Data, 'base64');
+
     // Upload to Pinata
     const formData = new FormData();
-    formData.append('file', new Blob([content], { type: 'application/octet-stream' }));
+    formData.append('file', new Blob([buffer], { type: 'image/jpeg' }));
 
     const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
       method: 'POST',

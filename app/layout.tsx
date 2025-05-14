@@ -1,5 +1,6 @@
 import './globals.css'
 import { Space_Grotesk, IBM_Plex_Sans, Inter, Manrope } from 'next/font/google'
+import Header from './components/Header'
 
 const spaceGrotesk = Space_Grotesk({ 
   subsets: ['latin'],
@@ -23,8 +24,11 @@ const manrope = Manrope({
 })
 
 export const metadata = {
-  title: 'DeepCheq - Certify Media Authenticity',
+  title: 'CheqDeep - Certify Media Authenticity',
   description: 'Verify the authenticity of your photos and videos with our decentralized platform',
+  icons: {
+    icon: '/logo.png',
+  },
 }
 
 export default function RootLayout({
@@ -34,7 +38,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${spaceGrotesk.variable} ${ibmPlexSans.variable} ${inter.variable} ${manrope.variable}`}>
+      <body className={`${spaceGrotesk.variable} ${ibmPlexSans.variable} ${inter.variable} ${manrope.variable} bg-gradient-to-b from-[#1F2B50]/5 to-transparent`}>
+        <Header />
         {children}
       </body>
     </html>

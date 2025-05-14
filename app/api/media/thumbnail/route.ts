@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import ffmpeg from 'fluent-ffmpeg';
-import { writeFile, unlink, readFile } from 'fs/promises';
+import { unlink, readFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { createWriteStream } from 'fs';
@@ -9,11 +9,8 @@ export async function POST(request: Request) {
   try {
     const { videoContent } = await request.json();
     
-    // Create temporary files
     const videoPath = join(tmpdir(), `video-${Date.now()}.mp4`);
-    const thumbnailPath = join(tmpdir(), `thumbnail-${Date.now()}.jpg`);
     
-    // Decode base64 and write video content to temporary file using streams
     const videoBuffer = Buffer.from(videoContent.split(',')[1], 'base64');
     const writeStream = createWriteStream(videoPath);
     
