@@ -37,8 +37,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={`${spaceGrotesk.variable} ${ibmPlexSans.variable} ${inter.variable} ${manrope.variable} font-sans antialiased`}>
+    <html lang="en" className="light">
+      <body className={`${spaceGrotesk.variable} ${ibmPlexSans.variable} ${inter.variable} ${manrope.variable} font-sans antialiased bg-white text-gray-900`}>
         <Header />
         {children}
       </body>
