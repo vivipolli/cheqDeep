@@ -4,7 +4,6 @@ A decentralized solution for proving the authenticity and human origin of real-w
 
 ## Hackathon Alignment 🎯
 
-This project addresses the "Content Credentials" challenge by providing:
 - **Provenance Verification**: Immutable proof of media origin and creation
 - **Veracity Assurance**: Technical verification of human-created content
 - **Trust Infrastructure**: DID-based system for media authentication
@@ -42,7 +41,6 @@ CheqDeep leverages Cheqd's blockchain technology to create an immutable chain of
 1. **Media Capture & Analysis**
    - User uploads media (image/video)
    - System captures device metadata
-   - Analyzes technical markers for AI generation
 
 2. **DID & Resource Creation**
    - Generates unique DID for the creator
