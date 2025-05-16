@@ -1,6 +1,6 @@
-# CheqDeep - AI-Generated Content Verification 🔍
+# CheqDeep – Decentralized Media Authenticity Verification 🔍
 
-A decentralized solution for verifying media authenticity using Cheqd's blockchain technology and DID Linked Resources.
+A decentralized solution for proving the authenticity and human origin of real-world photos and videos using Cheqd’s blockchain, Decentralized Identifiers (DIDs), and Linked Resources. Designed for creators, journalists, legal professionals, and digital artists who need to prove their content was not AI-generated.
 
 ## Hackathon Alignment 🎯
 
