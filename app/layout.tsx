@@ -38,7 +38,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${spaceGrotesk.variable} ${ibmPlexSans.variable} ${inter.variable} ${manrope.variable} bg-gradient-to-b from-[#1F2B50]/5 to-transparent`}>
+      <body className={`${spaceGrotesk.variable} ${ibmPlexSans.variable} ${inter.variable} ${manrope.variable} font-sans antialiased`}>
         <Header />
         {children}
       </body>

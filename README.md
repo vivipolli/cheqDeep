@@ -1,4 +1,4 @@
-# CheqDeep - AI-Generated Content Verification 🔍
+## CheqDeep - Media Authenticity Verification 🔍
 
 A decentralized solution for verifying media authenticity using Cheqd's blockchain technology and DID Linked Resources.
 
