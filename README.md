@@ -2,12 +2,46 @@
 
 A decentralized solution for proving the authenticity and human origin of real-world photos and videos using Cheqd’s blockchain, Decentralized Identifiers (DIDs), and Linked Resources. Designed for creators, journalists, legal professionals, and digital artists who need to prove their content was not AI-generated.
 
-## Hackathon Alignment 🎯
+## Project Structure
 
-- **Provenance Verification**: Immutable proof of media origin and creation
-- **Veracity Assurance**: Technical verification of human-created content
-- **Trust Infrastructure**: DID-based system for media authentication
-- **Anti-AI Detection**: Verification of non-AI generated content
+```
+cheq-digit/
+├── midia-validator/           # Python backend for media analysis
+│   ├── server.py             # FastAPI server for media validation
+│   ├── requirements.txt      # Python dependencies
+│   └── .env                  # Environment variables
+│
+├── app/                      # Next.js frontend
+│   ├── api/                  # API routes
+│   │   ├── did/             # DID management endpoints
+│   │   ├── ipfs/            # IPFS storage endpoints
+│   │   └── resource/        # Resource management endpoints
+│   │
+│   ├── components/          # React components
+│   ├── services/            # Frontend services
+│   └── utils/               # Utility functions
+│
+└── public/                  # Static assets
+```
+
+### Key Components
+
+#### Media Validator (Python Backend)
+- **Location**: `/midia-validator`
+- **Purpose**: Handles media file analysis and validation
+- **Main Features**:
+  - Metadata extraction
+  - File format validation
+  - Image/video analysis
+  - Temporary file management
+
+#### API Routes (Next.js)
+- **Location**: `/app/api`
+- **Purpose**: Server-side API endpoints
+- **Key Endpoints**:
+  - `/api/did`: DID creation and management
+  - `/api/ipfs`: IPFS storage operations
+  - `/api/resource`: Resource creation and verification
 
 ## The Challenge 🎯
 
