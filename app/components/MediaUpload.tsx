@@ -185,7 +185,9 @@ export default function MediaUpload() {
         </div>
       )}
 
-      {analysis && !error && <AnalysisResult analysis={analysis} />}
+      {analysis && !error && (
+        <AnalysisResult analysis={analysis} fileType={file?.type} />
+      )}
 
       {hash && !error && (
         <div className="mt-6">

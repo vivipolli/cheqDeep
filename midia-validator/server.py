@@ -95,6 +95,47 @@ def extract_video_metadata(video_path: str) -> dict:
             "FileName": os.path.basename(video_path)
         }
         
+        # Get system information
+        try:
+            import platform
+            metadata.update({
+                "operating_system": platform.system(),
+                "os_version": platform.version(),
+                "os_release": platform.release(),
+                "os_architecture": platform.machine()
+            })
+        except Exception as e:
+            print(f"Error getting system info: {str(e)}")
+
+        # Try to get location from ffprobe
+        try:
+            cmd = [
+                'ffprobe', '-v', 'quiet',
+                '-print_format', 'json',
+                '-show_format', '-show_streams',
+                video_path
+            ]
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            ffprobe_data = json.loads(result.stdout)
+
+            # Extract location from metadata if available
+            if 'format' in ffprobe_data and 'tags' in ffprobe_data['format']:
+                tags = ffprobe_data['format']['tags']
+                if 'location' in tags:
+                    metadata['location'] = tags['location']
+                if 'com.apple.quicktime.location.ISO6709' in tags:
+                    location = tags['com.apple.quicktime.location.ISO6709']
+                    # Parse ISO6709 format (e.g., +40.6894-074.0447+000.000/)
+                    try:
+                        lat = float(location[1:location.find('-')])
+                        lon = float(location[location.find('-')+1:location.find('+')])
+                        metadata['GPSLatitude'] = lat
+                        metadata['GPSLongitude'] = lon
+                    except:
+                        pass
+        except Exception as e:
+            print(f"Error extracting location from video: {str(e)}")
+        
         parser = createParser(video_path)
         if parser:
             with parser:
@@ -106,7 +147,14 @@ def extract_video_metadata(video_path: str) -> dict:
                         "width": str(meta.get('width', 'unknown')),
                         "height": str(meta.get('height', 'unknown')),
                         "codec": str(meta.get('codec', 'unknown')),
-                        "fps": str(meta.get('frame_rate', 'unknown'))
+                        "fps": str(meta.get('frame_rate', 'unknown')),
+                        "creation_date": str(meta.get('creation_date', 'unknown')),
+                        "last_modification": str(meta.get('last_modification', 'unknown')),
+                        "mime_type": str(meta.get('mime_type', 'unknown')),
+                        "endian": str(meta.get('endian', 'unknown')),
+                        "producer": str(meta.get('producer', 'unknown')),
+                        "copyright": str(meta.get('copyright', 'unknown')),
+                        "comment": str(meta.get('comment', 'unknown'))
                     })
                     if meta.get('width') and meta.get('height'):
                         metadata["resolution"] = f"{meta.get('width')}x{meta.get('height')}"
@@ -139,6 +187,10 @@ def extract_image_metadata(image_path: str) -> dict:
                             metadata["software"] = exif_dict["0th"][piexif.ImageIFD.Software].decode('utf-8', errors='ignore')
                         if piexif.ImageIFD.DateTime in exif_dict["0th"]:
                             metadata["DateTimeOriginal"] = exif_dict["0th"][piexif.ImageIFD.DateTime].decode('utf-8', errors='ignore')
+                        if piexif.ImageIFD.Artist in exif_dict["0th"]:
+                            metadata["Artist"] = exif_dict["0th"][piexif.ImageIFD.Artist].decode('utf-8', errors='ignore')
+                        if piexif.ImageIFD.Copyright in exif_dict["0th"]:
+                            metadata["Copyright"] = exif_dict["0th"][piexif.ImageIFD.Copyright].decode('utf-8', errors='ignore')
 
                     # Extract GPS info if available
                     if "GPS" in exif_dict:
@@ -156,6 +208,24 @@ def extract_image_metadata(image_path: str) -> dict:
                             metadata["GPSLongitude"] = float(lon[0]) + float(lon[1])/60 + float(lon[2])/3600
                             if lon_ref == 'W':
                                 metadata["GPSLongitude"] = -metadata["GPSLongitude"]
+
+                        if piexif.GPSIFD.GPSAltitude in exif_dict["GPS"]:
+                            alt = exif_dict["GPS"][piexif.GPSIFD.GPSAltitude]
+                            metadata["GPSAltitude"] = float(alt[0]) / float(alt[1])
+
+                    # Extract additional EXIF data
+                    if "Exif" in exif_dict:
+                        if piexif.ExifIFD.ExposureTime in exif_dict["Exif"]:
+                            exp = exif_dict["Exif"][piexif.ExifIFD.ExposureTime]
+                            metadata["ExposureTime"] = f"{exp[0]}/{exp[1]}"
+                        if piexif.ExifIFD.FNumber in exif_dict["Exif"]:
+                            fnum = exif_dict["Exif"][piexif.ExifIFD.FNumber]
+                            metadata["FNumber"] = f"{fnum[0]}/{fnum[1]}"
+                        if piexif.ExifIFD.ISOSpeedRatings in exif_dict["Exif"]:
+                            metadata["ISO"] = exif_dict["Exif"][piexif.ExifIFD.ISOSpeedRatings]
+                        if piexif.ExifIFD.FocalLength in exif_dict["Exif"]:
+                            focal = exif_dict["Exif"][piexif.ExifIFD.FocalLength]
+                            metadata["FocalLength"] = f"{focal[0]}/{focal[1]}"
 
             except Exception as exif_error:
                 print(f"Error extracting EXIF data: {str(exif_error)}")

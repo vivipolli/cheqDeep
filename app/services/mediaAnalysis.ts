@@ -12,6 +12,16 @@ export interface MediaAnalysis {
     codec?: string;
     duration?: string;
     bitrate?: string;
+    fps?: string;
+    creation_date?: string;
+    last_modification?: string;
+    producer?: string;
+    copyright?: string;
+    comment?: string;
+    operating_system?: string;
+    os_version?: string;
+    os_release?: string;
+    os_architecture?: string;
     // EXIF fields
     Make?: string;
     Model?: string;
