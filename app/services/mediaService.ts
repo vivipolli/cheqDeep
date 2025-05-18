@@ -29,34 +29,56 @@ export async function uploadToIPFS(content: string): Promise<string> {
   }
 }
 
-export async function createVideoThumbnail(videoContent: string): Promise<string> {
-  try {
-    // Create thumbnail in browser
-    const thumbnail = await new Promise<string>((resolve, reject) => {
+export async function createVideoThumbnail(videoData: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    try {
       const video = document.createElement('video');
-      video.src = videoContent;
-      video.onloadedmetadata = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 640;
-        canvas.height = (video.videoHeight * 640) / video.videoWidth;
-        
-        video.currentTime = 1;
-        video.onseeked = () => {
-          if (ctx) {
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            resolve(canvas.toDataURL('image/jpeg', 0.7));
-          } else {
-            reject(new Error('Could not get canvas context'));
-          }
-        };
-      };
-      video.onerror = () => reject(new Error('Error loading video'));
-    });
+      video.src = videoData;
+      video.crossOrigin = 'anonymous';
+      
+      // Set video properties for better compatibility
+      video.preload = 'metadata';
+      video.muted = true;
+      video.playsInline = true;
 
-    return thumbnail;
-  } catch (error) {
-    console.error('Error creating thumbnail:', error);
-    throw error;
-  }
+      video.onloadedmetadata = () => {
+        // Seek to 1 second to avoid black frames
+        video.currentTime = 1;
+      };
+
+      video.onseeked = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            throw new Error('Could not get canvas context');
+          }
+
+          // Draw the video frame
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          // Convert to base64
+          const thumbnail = canvas.toDataURL('image/jpeg', 0.8);
+          resolve(thumbnail);
+        } catch (error) {
+          console.error('Error creating thumbnail:', error);
+          reject(error);
+        }
+      };
+
+      video.onerror = (error) => {
+        console.error('Error loading video for thumbnail:', error);
+        reject(new Error('Failed to load video for thumbnail generation'));
+      };
+
+      // Start loading the video
+      video.load();
+    } catch (error) {
+      console.error('Error in createVideoThumbnail:', error);
+      reject(error);
+    }
+  });
 } 

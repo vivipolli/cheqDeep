@@ -41,6 +41,11 @@ export default function MediaUpload() {
         } else if (file.type.startsWith('video/')) {
           const video = document.createElement('video');
           video.src = result;
+          // Add error handling for video preview
+          video.onerror = (e) => {
+            console.error('Error loading video preview:', e);
+            setError('Error loading video preview. The video format might not be supported by your browser.');
+          };
         }
       };
       reader.readAsDataURL(file);
@@ -71,9 +76,15 @@ export default function MediaUpload() {
           // For images, we can use the file directly
           thumbnailUrl = await uploadToIPFS(content);
         } else if (file.type.startsWith('video/')) {
-          // Create thumbnail in browser
-          const thumbnail = await createVideoThumbnail(content);
-          thumbnailUrl = await uploadToIPFS(thumbnail);
+          try {
+            // Create thumbnail in browser
+            const thumbnail = await createVideoThumbnail(content);
+            thumbnailUrl = await uploadToIPFS(thumbnail);
+          } catch (thumbnailError) {
+            console.error('Error creating video thumbnail:', thumbnailError);
+            // Use the default hero image as fallback thumbnail
+            thumbnailUrl = '/hero_img.png';
+          }
         }
 
         const metadata = {
