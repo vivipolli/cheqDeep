@@ -92,85 +92,54 @@ def extract_metadata(file_path: str, include_gps: bool = False) -> Dict[str, Any
 
 def extract_video_metadata(video_path: str) -> dict:
     try:
+        print(f"[DEBUG] Starting video metadata extraction for: {video_path}")
         metadata = {
             "fileSize": os.path.getsize(video_path),
             "fileType": mimetypes.guess_type(video_path)[0] or "video/mp4",
             "FileName": os.path.basename(video_path)
         }
+        print(f"[DEBUG] Basic metadata: {metadata}")
         
-        # Try to get metadata from ffprobe
-        try:
-            cmd = [
-                'ffprobe', '-v', 'quiet',
-                '-print_format', 'json',
-                '-show_format', '-show_streams',
-                video_path
-            ]
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            ffprobe_data = json.loads(result.stdout)
-
-            # Extract metadata from format tags
-            if 'format' in ffprobe_data and 'tags' in ffprobe_data['format']:
-                tags = ffprobe_data['format']['tags']
+        parser = createParser(video_path)
+        if parser:
+            print("[DEBUG] Parser created successfully")
+            with parser:
+                meta = extractMetadata(parser)
+                if meta:
+                    print(f"[DEBUG] Raw metadata from hachoir: {meta}")
+                    metadata.update({
+                        "duration": str(meta.get('duration', 'unknown')),
+                        "bitrate": str(meta.get('bit_rate', 'unknown')),
+                        "width": str(meta.get('width', 'unknown')),
+                        "height": str(meta.get('height', 'unknown')),
+                        "codec": str(meta.get('codec', 'unknown')),
+                        "fps": str(meta.get('frame_rate', 'unknown')),
+                        "creation_date": str(meta.get('creation_date', 'unknown')),
+                        "last_modification": str(meta.get('last_modification', 'unknown')),
+                        "mime_type": str(meta.get('mime_type', 'unknown')),
+                        "producer": str(meta.get('producer', 'unknown')),
+                        "copyright": str(meta.get('copyright', 'unknown')),
+                        "comment": str(meta.get('comment', 'unknown')),
+                        "operating_system": str(meta.get('operating_system', 'unknown')),
+                        "os_version": str(meta.get('os_version', 'unknown')),
+                        "os_release": str(meta.get('os_release', 'unknown')),
+                        "os_architecture": str(meta.get('os_architecture', 'unknown'))
+                    })
+                    if meta.get('width') and meta.get('height'):
+                        metadata["resolution"] = f"{meta.get('width')}x{meta.get('height')}"
+                    print(f"[DEBUG] Final processed metadata: {metadata}")
+                else:
+                    print("[DEBUG] No metadata found in parser")
+        else:
+            print("[DEBUG] Failed to create parser")
                 
-                # Extract OS information from various possible tags
-                os_tags = {
-                    'operating_system': ['com.apple.quicktime.os', 'os', 'operating_system', 'system'],
-                    'os_version': ['com.apple.quicktime.os.version', 'os_version', 'version'],
-                    'os_release': ['com.apple.quicktime.os.release', 'os_release', 'release'],
-                    'os_architecture': ['com.apple.quicktime.os.architecture', 'os_architecture', 'architecture']
-                }
-
-                for metadata_key, possible_tags in os_tags.items():
-                    for tag in possible_tags:
-                        if tag in tags:
-                            metadata[metadata_key] = tags[tag]
-                            break
-
-                # Extract other metadata
-                if 'location' in tags:
-                    metadata['location'] = tags['location']
-                if 'com.apple.quicktime.location.ISO6709' in tags:
-                    location = tags['com.apple.quicktime.location.ISO6709']
-                    try:
-                        lat = float(location[1:location.find('-')])
-                        lon = float(location[location.find('-')+1:location.find('+')])
-                        metadata['GPSLatitude'] = lat
-                        metadata['GPSLongitude'] = lon
-                    except:
-                        pass
-                if 'creation_date' in tags:
-                    metadata['creation_date'] = tags['creation_date']
-                if 'modify_date' in tags:
-                    metadata['last_modification'] = tags['modify_date']
-                if 'producer' in tags:
-                    metadata['producer'] = tags['producer']
-                if 'copyright' in tags:
-                    metadata['copyright'] = tags['copyright']
-                if 'comment' in tags:
-                    metadata['comment'] = tags['comment']
-
-            # Extract video stream information
-            if 'streams' in ffprobe_data:
-                for stream in ffprobe_data['streams']:
-                    if stream['codec_type'] == 'video':
-                        metadata.update({
-                            "codec": stream.get('codec_name', 'unknown'),
-                            "width": stream.get('width', 'unknown'),
-                            "height": stream.get('height', 'unknown'),
-                            "fps": eval(stream.get('r_frame_rate', '0/1')),
-                            "bitrate": stream.get('bit_rate', 'unknown')
-                        })
-                        if stream.get('width') and stream.get('height'):
-                            metadata["resolution"] = f"{stream['width']}x{stream['height']}"
-
-        except Exception as e:
-            print(f"Error extracting metadata from video: {str(e)}")
-        
         return metadata
         
     except Exception as e:
-        print(f"Error extracting video metadata: {str(e)}")
+        print(f"[ERROR] Error extracting video metadata: {str(e)}")
+        print(f"[ERROR] Error type: {type(e)}")
+        import traceback
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error extracting video metadata: {str(e)}")
 
 def extract_image_metadata(image_path: str) -> dict:
