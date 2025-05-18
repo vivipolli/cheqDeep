@@ -114,7 +114,7 @@ export default function MediaUpload() {
     onDrop,
     accept: {
       'image/*': ['.jpg', '.jpeg', '.png'],
-      'video/*': ['.mp4', '.mov']
+      'video/*': ['.mp4', '.mov', '.heic', '.hevc']
     },
     maxFiles: 1
   });
@@ -138,7 +138,7 @@ export default function MediaUpload() {
                 Drag and drop your image or video here, or click to select files
               </p>
               <p className="font-manrope text-sm text-gray-500">
-                Supported formats: JPG, PNG, MP4, MOV
+                Supported formats: JPG, PNG, MP4, MOV, HEIC, HEVC
               </p>
               <p className="font-manrope text-sm text-gray-500 mt-2">
                 ⚠️ Only original media from capture devices is accepted

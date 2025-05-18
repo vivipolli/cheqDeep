@@ -16,6 +16,9 @@ from pillow_heif import register_heif_opener
 # Register HEIF opener
 register_heif_opener()
 
+# Add HEVC mime type
+mimetypes.add_type('video/hevc', '.hevc')
+
 app = FastAPI(title="Media Validator API")
 
 app.add_middleware(
